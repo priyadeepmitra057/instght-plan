@@ -8,7 +8,7 @@ import pandas as pd
 from pipeline import run_pipeline, generate_new_run_id
 from recurring_detector import find_recurring_transactions
 import config
-from hash_utils import stable_hash
+from log_utils import log_safe_merchant
 
 from schema import Col
 
@@ -137,4 +137,4 @@ def test_pii_redaction_coverage(monkeypatch, caplog):
         find_recurring_transactions(df, group_col=Col.CLEANED_REMARKS)
         
     assert not any("Netflix" in msg for msg in caplog.messages)
-    assert any(stable_hash("Netflix") in msg for msg in caplog.messages)
+    assert any(log_safe_merchant("Netflix") in msg for msg in caplog.messages)

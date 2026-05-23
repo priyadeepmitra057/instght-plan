@@ -17,7 +17,8 @@ from typing import List, Optional
 
 import pandas as pd
 
-from config import TIP_CORPUS, INSIGHT_TEMPLATES, lookup_matching_tip_ids
+from contracts import TIP_CORPUS, lookup_matching_tip_ids
+from config import INSIGHT_TEMPLATES
 from schema import Col, require_columns
 
 logger = logging.getLogger(__name__)
