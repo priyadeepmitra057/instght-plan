@@ -11,9 +11,9 @@ Your job: synthesize the plan, validate it against the codebase, and produce a p
 ---
 ## INPUTS
 
-Plan files directory:  '/home/priyadeep/Desktop/Folder/Insight engine/planv14/'
-Codebase root:         'home/priyadeep/Desktop/Folder/Insight engine/'
-Output directory:      'home/priyadeep/Desktop/Folder/Insight engine/microsteps/'
+Plan files directory:  '/planv14/'
+Codebase root:         '/'
+Output directory:      '/microsteps/'
 
 Read ALL files in the plan directory before starting Phase 0.
 Treat the codebase root as the reference for all file paths in execution steps.
