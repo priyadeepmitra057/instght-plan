@@ -250,57 +250,30 @@ class PassionResult:
   Block ID:       CB-P2-01
   Flags:          [INTERFACE BREAK RISK]
 
-  Before:
-  ```python
+  Instruction: Apply explicit patch instructions for `PipelineResult`:
+
+  - Replace exactly:
+    ```python
 @dataclass(frozen=True)
 class PipelineResult:
-    debits: pd.DataFrame
-    credits: pd.DataFrame
-    # ... existing fields ...
-    personal_debits: pd.DataFrame = field(default_factory=pd.DataFrame)
-    personal_credits: pd.DataFrame = field(default_factory=pd.DataFrame)
-    personal_summary: dict = field(default_factory=dict)
+    ```
 
-    def __post_init__(self):
-        # ... existing validation ...
-  ```
-
-  Instruction: Update `PipelineResult` verbatim. Add `kw_only=True` to the decorator. Add the 4 new fields (`stats`, `passion_debits`, `passion_insights`, `passion_signals`) at the end of the class fields. Update `__post_init__` to include defensive copy and type validation logic for both existing and new fields.
-
-  After:
-  ```python
-import pandas as pd
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from passion_models import PassionSignal
-
-# M1: Keep frozen=True.
-# With all call sites audited and converted, enforce kw_only=True.
-# Do not add slots=True.
+    With:
+    ```python
 @dataclass(frozen=True, kw_only=True)
 class PipelineResult:
-    # ... other existing fields unchanged ...
+    ```
 
-    # B6: Do not change personal_summary default unless audited.
-    # Keep personal_debits unchanged.
-
-    # B7: Add 4 new fields with defaults at the end only after B5 audit.
+  - Insert after exactly `personal_summary: dict = field(default_factory=dict)`:
+    ```python
     stats: dict = field(default_factory=dict)
     passion_debits: pd.DataFrame = field(default_factory=pd.DataFrame)
     passion_insights: tuple = field(default=())
     passion_signals: tuple = field(default=())
+    ```
 
-    def __post_init__(self):
-        # Merge changes into existing __post_init__ if one exists.
-        # OPEN THE LIVE EXISTING PipelineResult.__post_init__ and PRESERVE EVERY EXISTING VALIDATION EXACTLY unless a test proves it must change.
-        # APPEND only the new passion-field logic after existing validation.
-        # Do not replace the method with this template version.
-
-        # Existing __post_init__ logic goes here...
-        # ...
-
+  - Append the new stats/passion validation block to the existing `__post_init__`. Do not replace existing code inside `__post_init__`, just append the following:
+    ```python
         # New defensive copy logic:
         import pandas as pd
         if hasattr(self, "debits") and isinstance(self.debits, pd.DataFrame):
@@ -350,7 +323,9 @@ class PipelineResult:
         for t in self.passion_insights:
             if not isinstance(t, str):
                 raise TypeError(f"passion_insights must contain str, got {type(t)}")
-  ```
+    ```
+
+  - STOP if decorator, personal_summary, or `__post_init__` anchor is not found exactly once.
 
   Rollback: Restore original `PipelineResult` class.
 
@@ -359,6 +334,7 @@ POST-EXECUTION VALIDATION
 [ ] `pipeline_result.py` exists.
 [ ] `PipelineResult` in `pipeline.py` has `kw_only=True`.
 [ ] `python3 -m py_compile passion_models.py pipeline_result.py pipeline.py` succeeds.
+[ ] `python3 -c "from pipeline_result import PassionResult; import pandas as pd; r = PassionResult(debits=pd.DataFrame(), candidates=(), insights=(), passion_signals=()); assert r.debits.empty"` succeeds.
 
 GO / NO-GO
 All checks pass → proceed to CHECKPOINT [07]

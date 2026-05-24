@@ -199,7 +199,6 @@ __all__ = ["INSIGHT_TEMPLATES", "TIP_CORPUS", "lookup_matching_tip_ids"]
 import os
 import string
 import sys
-from config_passion import validate_merchant_aliases, PASSION_INSIGHT_TEMPLATES
 from contracts import INSIGHT_TEMPLATES, TIP_CORPUS
 from types import MappingProxyType
 
@@ -323,6 +322,7 @@ def _validate_insight_templates() -> None:
 
 
 def _validate_passion_templates() -> None:
+    from config_passion import PASSION_INSIGHT_TEMPLATES
     if not isinstance(PASSION_INSIGHT_TEMPLATES, MappingProxyType):
         raise TypeError(f"PASSION_INSIGHT_TEMPLATES must be MappingProxyType, got {type(PASSION_INSIGHT_TEMPLATES)}")
     if "lifestyle_opportunity" not in PASSION_INSIGHT_TEMPLATES:
@@ -377,6 +377,7 @@ def _dry_render_templates() -> None:
         "pct": 10, "frequency": "monthly",
         "total_spend": 100.0, "trend_direction": "non_declining",
     }
+    from config_passion import PASSION_INSIGHT_TEMPLATES
     all_corpora = [
         ("INSIGHT_TEMPLATES", INSIGHT_TEMPLATES),
         ("PASSION_INSIGHT_TEMPLATES", PASSION_INSIGHT_TEMPLATES),
@@ -440,6 +441,7 @@ def run_startup_checks(env: str | None = None) -> None:
         raise RuntimeError("CRITICAL: INSIGHT_ENGINE_SECRET missing in production/staging.")
     _validate_secret()
     _validate_schema_columns()
+    from config_passion import validate_merchant_aliases
     validate_merchant_aliases()
     _validate_insight_templates()
     _validate_passion_templates()
@@ -460,8 +462,8 @@ def run_startup_checks(env: str | None = None) -> None:
 POST-EXECUTION VALIDATION
 [ ] `contracts.py` exists.
 [ ] `bootstrap.py` exists.
-[ ] `python3 -c "import contracts; print('Contracts Loaded')"` succeeds.
-[ ] `python3 -c "import bootstrap; print('Bootstrap Loaded')"` fails as expected (config_passion missing).
+[ ] python3 -m py_compile contracts.py bootstrap.py succeeds.
+[ ] `python3 -c "import contracts; import bootstrap; print('startup imports ok')"` succeeds.
 
 GO / NO-GO
 All checks pass → proceed to CHECKPOINT [04]

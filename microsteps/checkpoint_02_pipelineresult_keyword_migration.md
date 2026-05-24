@@ -1,7 +1,7 @@
 # CHECKPOINT 02: PipelineResult Keyword Migration
 Directly modified:   pipeline.py, tests/test_phase3.py
 Indirectly affected: Pipeline execution
-Code blocks used:    NONE (Audit-based refactor)
+Code blocks used:    CB-P2-00
 Risk:                MEDIUM
 Depends on:          CHECKPOINT 01
 
@@ -24,51 +24,37 @@ STEPS
   File:           pipeline.py
   Action:         MODIFY
   Target:         run_pipeline and run_inference
-  Instruction:    Audit and ensure `PipelineResult` calls use keyword arguments.
+  Instruction:    Run AST validation to ensure `PipelineResult` calls use keyword arguments.
 
   Details:
-  Line 333: Already keyword?
-  ```python
-        return PipelineResult(
-            debits=debits,
-            credits=credits,
-            # ...
-  ```
-  Line 521: Already keyword?
-  ```python
-        return PipelineResult(
-            debits=debits,
-            credits=credits,
-            # ...
-  ```
-  (No action if already keyword)
+  Run the script to ensure there are no positional arguments in `PipelineResult` constructor calls. If the script fails, manually refactor the codebase to use keyword-only arguments and run it again.
 
-  STEP [2.2]
-  File:           tests/test_phase3.py
-  Action:         MODIFY
-  Target:         Test calls
-  Instruction:    Audit and ensure `PipelineResult` calls use keyword arguments.
+  After:
+  ```bash
+python3 - <<'PY'
+import ast
+from pathlib import Path
 
-  Details:
-  Line 185:
-  ```python
-    result = PipelineResult(
-        debits=pd.DataFrame(...),
-        credits=pd.DataFrame(...)
-    )
+bad = []
+for path in Path(".").rglob("*.py"):
+    if ".venv" in path.parts or "venv" in path.parts:
+        continue
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            fn = node.func
+            name = fn.id if isinstance(fn, ast.Name) else getattr(fn, "attr", "")
+            if name == "PipelineResult" and node.args:
+                bad.append((str(path), node.lineno, len(node.args)))
+
+if bad:
+    raise SystemExit(f"PipelineResult positional calls found: {bad}")
+print("PipelineResult keyword-only call validation passed")
+PY
   ```
-  Line 197:
-  ```python
-    original = PipelineResult(
-        debits=pd.DataFrame(...),
-        credits=pd.DataFrame(...),
-        global_mean=0.1
-    )
-  ```
-  (No action if already keyword)
 
 POST-EXECUTION VALIDATION
-[ ] All `PipelineResult(...)` calls in the codebase use keyword arguments for all parameters.
+[ ] AST validation script passes.
 [ ] `pytest tests/test_phase3.py` passes.
 
 GO / NO-GO
