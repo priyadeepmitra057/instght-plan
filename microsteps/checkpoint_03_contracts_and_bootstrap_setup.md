@@ -460,6 +460,7 @@ def run_startup_checks(env: str | None = None) -> None:
 POST-EXECUTION VALIDATION
 [ ] `contracts.py` exists.
 [ ] `bootstrap.py` exists.
+[ ] python3 -m py_compile contracts.py bootstrap.py succeeds.
 [ ] `python3 -c "import contracts; print('Contracts Loaded')"` succeeds.
 [ ] `python3 -c "import bootstrap; print('Bootstrap Loaded')"` fails as expected (config_passion missing).
 

@@ -359,6 +359,7 @@ POST-EXECUTION VALIDATION
 [ ] `pipeline_result.py` exists.
 [ ] `PipelineResult` in `pipeline.py` has `kw_only=True`.
 [ ] `python3 -m py_compile passion_models.py pipeline_result.py pipeline.py` succeeds.
+[ ] `python3 -c "from pipeline_result import PassionResult; import pandas as pd; r = PassionResult(debits=pd.DataFrame(), candidates=(), insights=(), passion_signals=()); assert r.debits.empty"` succeeds.
 
 GO / NO-GO
 All checks pass → proceed to CHECKPOINT [07]

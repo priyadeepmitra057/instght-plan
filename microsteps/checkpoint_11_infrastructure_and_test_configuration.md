@@ -39,10 +39,16 @@ STEPS
 
   Before:
   ```yaml
-  # (existing secret validation or workflow steps)
+      - name: Validate secrets
+        run: |
+          if [ -z "$INSIGHT_ENGINE_SECRET" ]; then
+            echo "Warning: INSIGHT_ENGINE_SECRET not set"
+          fi
+        env:
+          INSIGHT_ENGINE_SECRET: ${{ secrets.INSIGHT_ENGINE_SECRET }}
   ```
 
-  Instruction: Add the secret validation step to the workflow verbatim.
+  Instruction: Replace the exact literal code block above. If the exact Before block is not found exactly once, STOP. Do not infer the edit location. Add the secret validation step to the workflow verbatim.
 
   After:
   ```yaml
@@ -77,7 +83,7 @@ STEPS
   # (existing pyproject.toml or file does not exist)
   ```
 
-  Instruction: Update or create `pyproject.toml` with verbatim content.
+  Instruction: Update or create `pyproject.toml` with verbatim content. Do not change filterwarnings to error::UserWarning globally. pandas and third-party libraries emit non-actionable UserWarnings; only RuntimeWarning should fail tests globally.
 
   After:
   ```toml
@@ -141,10 +147,17 @@ scipy>=1.17,<2
   ```python
 import pytest
 import os
-# ... existing fixtures ...
-  ```
+from log_utils import _reset_secret_cache
 
-  Instruction: Add the verbatim test environment fixtures to `tests/conftest.py`.
+@pytest.fixture(autouse=True)
+def _set_test_env():
+    """Force test environment."""
+    os.environ["ENV"] = "test"
+    os.environ["INSIGHT_ENGINE_SKIP_STARTUP_CHECKS"] = "true"
+    yield
+```
+
+  Instruction: Replace the exact literal code block above. If the exact Before block is not found exactly once, STOP. Do not infer the edit location. Add the verbatim test environment fixtures to `tests/conftest.py`. Session-scoped env fixture uses manual save/restore intentionally because monkeypatch is function-scoped. Function-scoped fixtures must use monkeypatch.
 
   After:
   ```python

@@ -27,15 +27,24 @@ STEPS
   Block ID:       CB-P7-05, CB-P8-01
   Flags:          NONE
 
-  Instruction: Create `tests/test_passion_engine.py` by concatenating the code from CB-P7-05 and CB-P8-01.
+  Instruction: Create `tests/test_passion_engine.py` by concatenating the code from CB-P7-05 and CB-P8-01. Add explicit seam markers around the combined code.
 
   After:
   ```python
+# BEGIN_CB_P7_05
 <verbatim code from CB-P7-05>
+# END_CB_P7_05
+
+# BEGIN_CB_P8_01
 <verbatim code from CB-P8-01>
+# END_CB_P8_01
   ```
 
 POST-EXECUTION VALIDATION
+[ ] `grep -n "BEGIN_CB_P7_05" tests/test_passion_engine.py`
+[ ] `grep -n "BEGIN_CB_P8_01" tests/test_passion_engine.py`
+[ ] `python3 -m py_compile tests/test_passion_engine.py` succeeds.
+[ ] `pytest --collect-only tests/test_passion_engine.py` succeeds.
 [ ] `tests/test_passion_engine.py` exists and is a valid python file.
 [ ] `pytest tests/test_passion_engine.py` passes all tests.
 

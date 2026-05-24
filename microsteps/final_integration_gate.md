@@ -26,6 +26,8 @@
 **Deployment readiness**
 - [ ] `INSIGHT_ENGINE_PASSION_ENABLED` kill switch verified (defaults to `false`).
 - [ ] `INSIGHT_ENGINE_SECRET` min 32-byte requirement verified.
+- [ ] `INSIGHT_ENGINE_CRASH_TEST` is verified absent from production/staging configs.
+- [ ] Tests that use `INSIGHT_ENGINE_CRASH_TEST` verify setting/unsetting with monkeypatch, not os.environ.
 - [ ] All new code paths have structured log coverage.
 - [ ] All new async paths (init) are observable and handle timeouts.
 - [ ] Docs/comments updated (PipelineResult contract D4).

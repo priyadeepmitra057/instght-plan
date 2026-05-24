@@ -388,12 +388,34 @@ __all__ = [
 
   Before:
   ```python
-from config import TIP_CORPUS
-# ... (around line 52)
-tip_text = TIP_CORPUS.get(tip_id, "")
+import random
+import logging
+from typing import Any
+from config import INSIGHT_TEMPLATES, TIP_CORPUS
+from schema import Col
+```
+  *(...)*
+  ```python
+def _select_tip(category: str, insight_type: str, rng: random.Random) -> str:
+    """Select a random tip that matches the category and insight type."""
+    # Find matching tips from config.TIP_CORPUS
+    matching_tip_ids = []
+    for tip_id, tip_data in TIP_CORPUS.items():
+        if category in tip_data.get("categories", []) and insight_type in tip_data.get("insights", []):
+            matching_tip_ids.append(tip_id)
+        # generic tips might have wildcard "any" or match everything
+        elif "any" in tip_data.get("categories", []) and insight_type in tip_data.get("insights", []):
+            matching_tip_ids.append(tip_id)
+
+    if not matching_tip_ids:
+        return ""
+
+    tip_id = rng.choice(matching_tip_ids)
+    tip_text = TIP_CORPUS.get(tip_id, {}).get("text", "")
+    return tip_text
   ```
 
-  Instruction: Replace the `TIP_CORPUS` import and update access patterns to the new schema.
+  Instruction: Replace the exact literal code blocks above. If the exact Before block is not found exactly once, STOP. Do not infer the edit location. Replace the `TIP_CORPUS` import and update access patterns to the new schema using `lookup_matching_tip_ids` from `contracts`.
 
   After:
   ```python

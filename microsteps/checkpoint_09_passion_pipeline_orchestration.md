@@ -54,6 +54,7 @@ enrich_df, detect_df/output_df, PassionResult copy, and PipelineResult replaceme
 For DataFrames over 500MB, consider enabling pandas Copy-on-Write mode
 and testing under production memory limits.
 If a cooperative stage deadline occurs, the core pipeline result is returned unchanged.
+The passion budget guard checks between substages and selected internal checkpoints. It is not a process-level kill switch. Large-input protection depends on INSIGHT_ENGINE_PASSION_MAX_ROWS and avoiding unbounded regex/vectorized joins inside substages.
 """
 import os as _os
 import re as _re
@@ -703,6 +704,7 @@ POST-EXECUTION VALIDATION
 [ ] `passion_pipeline.py` exists.
 [ ] `PipelineResult` docstring in `pipeline.py` contains the D4 contract.
 [ ] `python3 -m py_compile passion_pipeline.py pipeline.py` succeeds.
+[ ] `python3 -c "import passion_pipeline; assert hasattr(passion_pipeline, 'process_pipeline')"` succeeds.
 
 GO / NO-GO
 All checks pass → proceed to CHECKPOINT [10]

@@ -372,6 +372,8 @@ def _attach_passion_results(
   Block ID:       CB-P6-04
   Flags:          NONE
 
+  Note: `INSIGHT_ENGINE_CRASH_TEST` is test-only. It must never be set in production, staging, or deployment workflows.
+
   Before:
   ```python
         # return result
@@ -408,10 +410,16 @@ def _attach_passion_results(
 
   Before:
   ```python
-        return PipelineResult(...)
+        return PipelineResult(
+            debits=debits,
+            credits=credits,
+            personal_debits=personal_debits,
+            personal_credits=personal_credits,
+            personal_summary=personal_summary
+        )
   ```
 
-  Instruction: Assign the result to a variable and apply the passion hook.
+  Instruction: Replace the exact literal code block above. If the exact Before block is not found exactly once, STOP. Do not infer the edit location. Assign the result to a variable and apply the passion hook.
 
   After:
   ```python
@@ -442,22 +450,66 @@ def _attach_passion_results(
   ```python
         if config.ENABLE_CRASH_DUMPS:
             try:
-                # old csv dump logic ...
+                os.makedirs(config.CRASH_DUMP_DIR, exist_ok=True)
+                if debits is not None and isinstance(debits, pd.DataFrame) and not debits.empty:
+                    debits.head(1000).to_csv(os.path.join(config.CRASH_DUMP_DIR, f"{run_id}_debits.csv"), index=False)
+                if credits is not None and isinstance(credits, pd.DataFrame) and not credits.empty:
+                    credits.head(1000).to_csv(os.path.join(config.CRASH_DUMP_DIR, f"{run_id}_credits.csv"), index=False)
+                logger.info(
+                    "Crash state snapshots written.",
+                    extra={"event_type": "crash_dump_success", "stage": "crash_handler"}
+                )
+            except Exception:
+                logger.warning(
+                    "Failed to write state dump to CSV during crash handling sequence.",
+                    extra={"event_type": "crash_dump_failed", "stage": "crash_handler"},
+                    exc_info=True
+                )
   ```
 
-  Instruction: Update the crash handler to use the new `_write_crash_dumps` helper.
+  Instruction: Replace the exact literal code block above. If the exact Before block is not found exactly once, STOP. Do not infer the edit location. Update the crash handler to use the new `_write_crash_dumps` helper and the `_resolve_passion_crash_fields` helper.
 
   After:
   ```python
+def _resolve_passion_crash_fields(result=None, locals_snapshot=None):
+    """
+    Resolve passion fields for crash dumps without relying on inline locals()
+    expressions in the exception handler.
+    """
+    snap = locals_snapshot or {}
+
+    if "passion_debits" in snap:
+        passion_debits = snap.get("passion_debits")
+    else:
+        passion_debits = getattr(result, "passion_debits", None) if result is not None else None
+
+    if "passion_insights" in snap:
+        passion_insights = snap.get("passion_insights") or ()
+    else:
+        passion_insights = getattr(result, "passion_insights", ()) if result is not None else ()
+
+    if "passion_signals" in snap:
+        passion_signals = snap.get("passion_signals") or ()
+    else:
+        passion_signals = getattr(result, "passion_signals", ()) if result is not None else ()
+
+    return passion_debits, passion_insights, passion_signals
+
+
         if config.ENABLE_CRASH_DUMPS:
             try:
+                _passion_debits, _passion_insights, _passion_signals = _resolve_passion_crash_fields(
+                    result=locals().get("result"),
+                    locals_snapshot=dict(locals()),
+                )
+
                 _write_crash_dumps(
                     debits=debits,
                     credits=credits,
                     crash_dump_dir=config.CRASH_DUMP_DIR,
-                    passion_debits=locals().get("passion_debits", None) if "passion_debits" in locals() else (getattr(result, "passion_debits", None) if "result" in locals() and result is not None else None),
-                    passion_insights=locals().get("passion_insights", ()) if "passion_insights" in locals() else (getattr(result, "passion_insights", ()) if "result" in locals() and result is not None else ()),
-                    passion_signals=locals().get("passion_signals", ()) if "passion_signals" in locals() else (getattr(result, "passion_signals", ()) if "result" in locals() and result is not None else ()),
+                    passion_debits=_passion_debits,
+                    passion_insights=_passion_insights,
+                    passion_signals=_passion_signals,
                     run_id=run_id,
                 )
                 logger.info(
@@ -479,6 +531,10 @@ POST-EXECUTION VALIDATION
 [ ] `run_pipeline` calls `_attach_passion_results` and `_write_crash_dumps`.
 [ ] `run_inference` calls `_attach_passion_results`.
 [ ] `python3 -m py_compile pipeline.py` succeeds.
+
+[ ] python3 -m py_compile pipeline.py succeeds.
+[ ] python3 -c "import pipeline; assert hasattr(pipeline, '_attach_passion_results'); assert hasattr(pipeline, '_write_crash_dumps')"
+[ ] python3 -c "import pipeline; assert hasattr(pipeline, '_resolve_passion_crash_fields')"
 
 GO / NO-GO
 All checks pass → proceed to CHECKPOINT [11]
