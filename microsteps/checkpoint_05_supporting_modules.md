@@ -388,42 +388,41 @@ __all__ = [
 
   Before:
   ```python
-import random
-import logging
-from typing import Any
-from config import INSIGHT_TEMPLATES, TIP_CORPUS
-from schema import Col
-```
-  *(...)*
-  ```python
-def _select_tip(category: str, insight_type: str, rng: random.Random) -> str:
-    """Select a random tip that matches the category and insight type."""
-    # Find matching tips from config.TIP_CORPUS
-    matching_tip_ids = []
-    for tip_id, tip_data in TIP_CORPUS.items():
-        if category in tip_data.get("categories", []) and insight_type in tip_data.get("insights", []):
-            matching_tip_ids.append(tip_id)
-        # generic tips might have wildcard "any" or match everything
-        elif "any" in tip_data.get("categories", []) and insight_type in tip_data.get("insights", []):
-            matching_tip_ids.append(tip_id)
-
-    if not matching_tip_ids:
-        return ""
-
-    tip_id = rng.choice(matching_tip_ids)
-    tip_text = TIP_CORPUS.get(tip_id, {}).get("text", "")
-    return tip_text
+from config import TIP_CORPUS
   ```
 
-  Instruction: Replace the exact literal code blocks above. If the exact Before block is not found exactly once, STOP. Do not infer the edit location. Replace the `TIP_CORPUS` import and update access patterns to the new schema using `lookup_matching_tip_ids` from `contracts`.
+  Instruction: Replace the exact import above with:
+
+  ```python
+from contracts import TIP_CORPUS, lookup_matching_tip_ids
+  ```
+
+  Then replace the existing `_select_tip` function exactly.
+  If the old `_select_tip` function is not found exactly once, STOP.
 
   After:
   ```python
-from contracts import TIP_CORPUS, lookup_matching_tip_ids
-from types import MappingProxyType
-# ... (in _select_tip or equivalent rendering logic)
-tip_data = TIP_CORPUS.get(tip_id, {})
-tip_text = tip_data.get("text", "") if tip_data else ""
+def _select_tip(category: str, insight_type: str, rng: random.Random) -> str:
+    """Select a random tip matching category and insight type."""
+    try:
+        tip_ids = lookup_matching_tip_ids(category, insight_type)
+    except (KeyError, TypeError, IndexError, ValueError) as e:
+        logger.warning(
+            "tip_lookup_failed",
+            extra={
+                "category": category,
+                "insight_type": insight_type,
+                "error_type": type(e).__name__,
+            },
+        )
+        return ""
+
+    if not tip_ids:
+        return ""
+
+    tip_id = rng.choice(tip_ids)
+    tip_data = TIP_CORPUS.get(tip_id, {})
+    return tip_data.get("text", "") if tip_data else ""
   ```
 
   Rollback: Revert imports and access patterns in insight_generator.py.
@@ -431,8 +430,10 @@ tip_text = tip_data.get("text", "") if tip_data else ""
 POST-EXECUTION VALIDATION
 [ ] File exists at: banned_content.py
 [ ] File exists at: config_passion.py
-[ ] Import resolves: from contracts import TIP_CORPUS (in insight_generator.py)
-[ ] `python3 -m py_compile banned_content.py config_passion.py insight_generator.py` succeeds.
+[ ] insight_generator.py imports TIP_CORPUS and lookup_matching_tip_ids from contracts.
+[ ] insight_generator.py does not import TIP_CORPUS from config.
+[ ] insight_generator.py contains no placeholder text like "equivalent rendering logic".
+[ ] python3 -m py_compile insight_generator.py succeeds.
 
 GO / NO-GO
 All checks pass → proceed to CHECKPOINT [06]

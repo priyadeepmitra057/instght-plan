@@ -173,49 +173,41 @@ SPECIFIC_MERCHANT_ALIASES: dict[str, str] = {
 }
   ```
 
-  Instruction: Replace the exact literal code block above. If the exact Before block is not found exactly once, STOP. Do not infer the edit location. Replace the existing `TIP_CORPUS` dictionary and ensure `SPECIFIC_MERCHANT_ALIASES` includes the required entries. Note that the plan provides a sample/migrated `TIP_CORPUS`.
+  Instruction: Replace the exact literal code block above. If the exact Before block is not found exactly once, STOP. Do not infer the edit location.
+  Migrate the existing TIP_CORPUS in place.
+  Do not replace the full corpus with the sample entries.
+  For every existing tip_id, preserve the existing text and convert each value to the new schema:
+
+  {
+  "text": existing_text,
+  "categories": tuple(existing_categories),
+  "insights": tuple(existing_insights),
+  }
+
+  Rules:
+  - Preserve every existing tip_id unless explicitly deprecated elsewhere.
+  - Preserve every existing tip text.
+  - Preserve every existing category and insight mapping.
+  - Generic wildcard tips may use empty categories/insights only if tip_id starts with "generic_".
+  - Non-generic tips must have non-empty categories and insights.
+  - Do not introduce "any" wildcard for non-generic tips.
+  - If any existing tip cannot be migrated mechanically, STOP and report the exact tip_id.
+
+  For SPECIFIC_MERCHANT_ALIASES:
+  Preserve the entire existing alias map.
+  Only add or normalize these required entries if missing:
+
+  "amazon": "amazon"
+  "amzn": "amazon"
+  "amazon prime": "amazon"
+  "flipkart": "flipkart"
+  "meesho": "meesho"
+  "snapdeal": "snapdeal"
+
+  Do not delete existing aliases.
 
   After:
-  ```python
-# config.py — Migrate TIP_CORPUS to new schema {text, categories, insights}
-TIP_CORPUS = {
-    # Non-generic tips: must have non-empty categories and insights.
-    # No "any" wildcard allowed. All values lowercase stripped.
-    "food_spike_tip": {
-        "text": "Your {category} spending spiked by {pct}% at {merchant}.",
-        "categories": ("food",),
-        "insights": ("spending_spike",),
-    },
-    "subscription_tip": {
-        "text": "{merchant} bills you {amount:.0f} every {frequency}.",
-        "categories": ("entertainment", "utilities"),
-        "insights": ("subscription",),
-    },
-    "lifestyle_tip": {
-        "text": "Strong lifestyle signal in {category}: {merchant_count} merchants, {spend_share:.1%} of spend.",
-        "categories": ("shopping", "travel", "fitness"),
-        "insights": ("lifestyle_opportunity",),
-    },
-    # Generic tips: empty categories/insights = wildcard (matches any category/insight).
-    # tip_id MUST start with 'generic_' to use empty-tuple wildcard behavior.
-    "generic_budget": {
-        "text": "Review this pattern before it becomes expensive.",
-        "categories": (),
-        "insights": (),
-    },
-}
-
-# SPECIFIC_MERCHANT_ALIASES must include at minimum these entries
-# so that GENERALIST_CANONICALS validation passes.
-SPECIFIC_MERCHANT_ALIASES = {
-    "amazon": "amazon",
-    "amzn": "amazon",
-    "amazon prime": "amazon",
-    "flipkart": "flipkart",
-    "meesho": "meesho",
-    "snapdeal": "snapdeal",
-}
-  ```
+  A patch-only instruction that explicitly preserves all existing entries and adds only the required entries, migrating the format as stated in the instruction.
 
   Rollback: Restore original `TIP_CORPUS` and `SPECIFIC_MERCHANT_ALIASES`.
 
@@ -225,7 +217,10 @@ POST-EXECUTION VALIDATION
 [ ] Linter passes.
 
 [ ] python3 -m py_compile schema.py config.py succeeds.
-[ ] python3 -c "from schema import Col; from config import TIP_CORPUS; assert Col.INFERRED_SUBCATEGORY == 'inferred_subcategory'; assert isinstance(TIP_CORPUS, dict)"
+[ ] python3 -c "from schema import Col; from config import TIP_CORPUS, SPECIFIC_MERCHANT_ALIASES; assert Col.INFERRED_SUBCATEGORY == 'inferred_subcategory'; assert Col.SUBCATEGORY_CONFIDENCE == 'subcategory_confidence'; assert isinstance(TIP_CORPUS, dict); assert isinstance(SPECIFIC_MERCHANT_ALIASES, dict)"
+[ ] python3 -c "from config import TIP_CORPUS; assert len(TIP_CORPUS) >= 5; assert all({'text','categories','insights'} <= set(v) for v in TIP_CORPUS.values())"
+[ ] python3 -c "from config import SPECIFIC_MERCHANT_ALIASES; required={'amazon','amzn','amazon prime','flipkart','meesho','snapdeal'}; assert required <= set(SPECIFIC_MERCHANT_ALIASES)"
+[ ] python3 -c "from config import SPECIFIC_MERCHANT_ALIASES; assert len(SPECIFIC_MERCHANT_ALIASES) >= 20"
 
 GO / NO-GO
 All checks pass → proceed to CHECKPOINT [02]

@@ -52,20 +52,20 @@ STEPS
 
   After:
   ```yaml
-- name: Validate required secrets
-  run: |
-    if [ -z "$INSIGHT_ENGINE_SECRET" ]; then
-      echo "CRITICAL: INSIGHT_ENGINE_SECRET is not set. Aborting."
-      exit 1
-    fi
-    clean_secret=$(printf '%s' "$INSIGHT_ENGINE_SECRET" | tr -d '\r\n')
-    byte_len=$(printf '%s' "$clean_secret" | wc -c)
-    if [ "$byte_len" -lt 32 ]; then
-      echo "CRITICAL: INSIGHT_ENGINE_SECRET too short (min 32 bytes)."
-      exit 1
-    fi
-  env:
-    INSIGHT_ENGINE_SECRET: ${{ secrets.INSIGHT_ENGINE_SECRET }}
+      - name: Validate required secrets
+        run: |
+          if [ -z "$INSIGHT_ENGINE_SECRET" ]; then
+            echo "CRITICAL: INSIGHT_ENGINE_SECRET is not set. Aborting."
+            exit 1
+          fi
+          clean_secret=$(printf '%s' "$INSIGHT_ENGINE_SECRET" | tr -d '\r\n')
+          byte_len=$(printf '%s' "$clean_secret" | wc -c)
+          if [ "$byte_len" -lt 32 ]; then
+            echo "CRITICAL: INSIGHT_ENGINE_SECRET too short (min 32 bytes)."
+            exit 1
+          fi
+        env:
+          INSIGHT_ENGINE_SECRET: ${{ secrets.INSIGHT_ENGINE_SECRET }}
   ```
 
   Rollback: Revert .github/workflows/deploy.yml.
@@ -78,14 +78,25 @@ STEPS
   Block ID:       CB-P7-02
   Flags:          NONE
 
-  Instruction: A. If `pyproject.toml` does not exist, CREATE it with the verbatim content below.
-  B. If `pyproject.toml` exists, replace exactly `[tool.pytest.ini_options]` block. Do not change filterwarnings to error::UserWarning globally. pandas and third-party libraries emit non-actionable UserWarnings; only RuntimeWarning should fail tests globally.
+  Instruction:
+  If `pyproject.toml` does not exist:
+  - create it with the full provided content below.
 
-  After:
+  If `pyproject.toml` exists:
+  - preserve all unrelated sections.
+  - if `[project]` exists and `requires-python` exists, update `requires-python` to `>=3.11`.
+  - if `[project]` exists and `requires-python` is absent, add `requires-python = ">=3.11"` inside `[project]`.
+  - if `[project]` is absent, add:
+    ```toml
+    [project]
+    requires-python = ">=3.11"
+    ```
+  - if `[tool.pytest.ini_options]` exists, replace only that block with the provided pytest block.
+  - if `[tool.pytest.ini_options]` is absent, append the provided pytest block.
+  - if more than one `[tool.pytest.ini_options]` block exists, STOP.
+
+  Provided pytest block:
   ```toml
-[project]
-requires-python = ">=3.11"
-
 [tool.pytest.ini_options]
 log_cli_level = "INFO"
 filterwarnings = [
@@ -236,6 +247,14 @@ def real_startup_env(monkeypatch):
   Rollback: Revert tests/conftest.py.
 
 POST-EXECUTION VALIDATION
+[ ] deploy.yml parses as valid YAML.
+[ ] The secret validation step remains under the same steps list as the original block.
+[ ] The step exits non-zero when INSIGHT_ENGINE_SECRET is empty.
+[ ] The step exits non-zero when INSIGHT_ENGINE_SECRET is shorter than 32 bytes.
+[ ] python3 -c "import tomllib; tomllib.load(open('pyproject.toml','rb'))" succeeds.
+[ ] pyproject.toml contains requires-python = ">=3.11".
+[ ] pyproject.toml contains exactly one [tool.pytest.ini_options] block.
+[ ] pyproject.toml does not contain "error::UserWarning".
 [ ] `requirements.txt` updated.
 [ ] `tests/conftest.py` includes `_set_test_env`.
 [ ] `pytest --version` works.

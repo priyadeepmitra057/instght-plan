@@ -450,7 +450,9 @@ def _attach_passion_results(
     result = PipelineResult(
         debits=debits,
         credits=credits,
-        # ... existing kwargs ...
+        personal_debits=personal_debits,
+        personal_credits=personal_credits,
+        personal_summary=personal_summary,
     )
 
     # Phase 7: Passion Engine (optional — errors are swallowed)
@@ -458,6 +460,7 @@ def _attach_passion_results(
     result = _attach_passion_results(result)
     return result
   ```
+  Important: If the live run_inference PipelineResult call contains additional keyword arguments, list every one explicitly. No placeholders are allowed.
 
   Rollback: Revert `run_inference` end.
 
@@ -528,9 +531,9 @@ def _attach_passion_results(
 POST-EXECUTION VALIDATION
 [ ] `pipeline.py` contains `_attach_passion_results` and `_write_crash_dumps`.
 [ ] `run_pipeline` calls `_attach_passion_results` and `_write_crash_dumps`.
-[ ] `run_inference` calls `_attach_passion_results`.
-[ ] `python3 -m py_compile pipeline.py` succeeds.
-
+[ ] grep -n "# ... existing kwargs ..." pipeline.py returns no matches.
+[ ] `run_inference` assigns PipelineResult(...) to result before returning.
+[ ] `run_inference` calls `_attach_passion_results(result)`.
 [ ] python3 -m py_compile pipeline.py succeeds.
 [ ] python3 -c "import pipeline; assert hasattr(pipeline, '_attach_passion_results'); assert hasattr(pipeline, '_write_crash_dumps'); assert hasattr(pipeline, '_resolve_passion_crash_fields')"
 
