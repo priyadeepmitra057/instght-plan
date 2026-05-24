@@ -78,12 +78,8 @@ STEPS
   Block ID:       CB-P7-02
   Flags:          NONE
 
-  Before:
-  ```toml
-  # (existing pyproject.toml or file does not exist)
-  ```
-
-  Instruction: Update or create `pyproject.toml` with verbatim content. Do not change filterwarnings to error::UserWarning globally. pandas and third-party libraries emit non-actionable UserWarnings; only RuntimeWarning should fail tests globally.
+  Instruction: A. If `pyproject.toml` does not exist, CREATE it with the verbatim content below.
+  B. If `pyproject.toml` exists, replace exactly `[tool.pytest.ini_options]` block. Do not change filterwarnings to error::UserWarning globally. pandas and third-party libraries emit non-actionable UserWarnings; only RuntimeWarning should fail tests globally.
 
   After:
   ```toml

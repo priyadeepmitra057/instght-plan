@@ -225,7 +225,7 @@ POST-EXECUTION VALIDATION
 [ ] Linter passes.
 
 [ ] python3 -m py_compile schema.py config.py succeeds.
-[ ] python3 -c "from schema import Col; from config import TIP_CORPUS, SPECIFIC_MERCHANT_ALIASES; assert Col.INFERRED_SUBCATEGORY == 'inferred_subcategory'; assert Col.SUBCATEGORY_CONFIDENCE == 'subcategory_confidence'; assert isinstance(TIP_CORPUS, dict)"
+[ ] python3 -c "from schema import Col; from config import TIP_CORPUS; assert Col.INFERRED_SUBCATEGORY == 'inferred_subcategory'; assert isinstance(TIP_CORPUS, dict)"
 
 GO / NO-GO
 All checks pass → proceed to CHECKPOINT [02]

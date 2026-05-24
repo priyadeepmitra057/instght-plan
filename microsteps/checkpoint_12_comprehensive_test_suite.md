@@ -16,6 +16,9 @@ Deploying the complete 174-test suite for the passion detection engine.
 
 PRE-CONDITIONS
 [ ] Checkpoint 11 passed.
+[ ] passion_plan_part7.md and passion_plan_part8.md are available locally.
+[ ] CB-P7-05 and CB-P8-01 are extracted exactly.
+[ ] tests/test_passion_engine.py does not contain placeholder text like <verbatim code from ...>.
 
 STEPS
 

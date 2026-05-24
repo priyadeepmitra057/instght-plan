@@ -38,14 +38,13 @@ STEPS
   Block ID:       CB-P6-01
   Flags:          NONE
 
-  Before:
+  Instruction: Replace the vague Before with an exact insertion rule:
+  Find this exact line once:
   ```python
-import logging
-# ...
 logger = logging.getLogger(__name__)
   ```
 
-  Instruction: Add `passion_logger` and required imports to the top of `pipeline.py`.
+  Insert immediately after it:
 
   After:
   ```python
@@ -66,7 +65,7 @@ passion_logger = get_logger("passion.engine")
   Block ID:       CB-P6-02, CB-P6-03
   Flags:          NONE
 
-  Instruction: Add `_write_crash_dumps` and `_attach_passion_results` helper functions verbatim above `run_pipeline`.
+  Instruction: Add `_write_crash_dumps`, `_resolve_passion_crash_fields`, and `_attach_passion_results` verbatim above `run_pipeline`.
 
   After:
   ```python
@@ -199,6 +198,31 @@ def _write_crash_dumps(
         with open(tmp_path, "w") as f:
             json.dump(passion_summary, f, indent=2, default=_json_safe)
         os.replace(tmp_path, final_path)
+
+
+def _resolve_passion_crash_fields(result=None, locals_snapshot=None):
+    """
+    Resolve passion fields for crash dumps without relying on inline locals()
+    expressions in the exception handler.
+    """
+    snap = locals_snapshot or {}
+
+    if "passion_debits" in snap:
+        passion_debits = snap.get("passion_debits")
+    else:
+        passion_debits = getattr(result, "passion_debits", None) if result is not None else None
+
+    if "passion_insights" in snap:
+        passion_insights = snap.get("passion_insights") or ()
+    else:
+        passion_insights = getattr(result, "passion_insights", ()) if result is not None else ()
+
+    if "passion_signals" in snap:
+        passion_signals = snap.get("passion_signals") or ()
+    else:
+        passion_signals = getattr(result, "passion_signals", ()) if result is not None else ()
+
+    return passion_debits, passion_insights, passion_signals
 
 
 def _attach_passion_results(
@@ -471,31 +495,6 @@ def _attach_passion_results(
 
   After:
   ```python
-def _resolve_passion_crash_fields(result=None, locals_snapshot=None):
-    """
-    Resolve passion fields for crash dumps without relying on inline locals()
-    expressions in the exception handler.
-    """
-    snap = locals_snapshot or {}
-
-    if "passion_debits" in snap:
-        passion_debits = snap.get("passion_debits")
-    else:
-        passion_debits = getattr(result, "passion_debits", None) if result is not None else None
-
-    if "passion_insights" in snap:
-        passion_insights = snap.get("passion_insights") or ()
-    else:
-        passion_insights = getattr(result, "passion_insights", ()) if result is not None else ()
-
-    if "passion_signals" in snap:
-        passion_signals = snap.get("passion_signals") or ()
-    else:
-        passion_signals = getattr(result, "passion_signals", ()) if result is not None else ()
-
-    return passion_debits, passion_insights, passion_signals
-
-
         if config.ENABLE_CRASH_DUMPS:
             try:
                 _passion_debits, _passion_insights, _passion_signals = _resolve_passion_crash_fields(
@@ -533,8 +532,7 @@ POST-EXECUTION VALIDATION
 [ ] `python3 -m py_compile pipeline.py` succeeds.
 
 [ ] python3 -m py_compile pipeline.py succeeds.
-[ ] python3 -c "import pipeline; assert hasattr(pipeline, '_attach_passion_results'); assert hasattr(pipeline, '_write_crash_dumps')"
-[ ] python3 -c "import pipeline; assert hasattr(pipeline, '_resolve_passion_crash_fields')"
+[ ] python3 -c "import pipeline; assert hasattr(pipeline, '_attach_passion_results'); assert hasattr(pipeline, '_write_crash_dumps'); assert hasattr(pipeline, '_resolve_passion_crash_fields')"
 
 GO / NO-GO
 All checks pass → proceed to CHECKPOINT [11]
