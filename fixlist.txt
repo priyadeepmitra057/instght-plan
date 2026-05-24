@@ -1,0 +1,222 @@
+MICROSTEP HARDENING ADDENDUM 2
+
+1. Replace vague Before blocks with literal anchors
+
+Problem:
+Several Before blocks contain placeholders such as:
+# ... existing fixtures ...
+# ... existing kwargs ...
+return PipelineResult(...)
+# old csv dump logic ...
+# ... (many more)
+
+This violates the executor directive "Do not infer."
+
+Fix:
+For every MODIFY step, the Before block must be one of:
+A. An exact literal code block copied from the current baseline file.
+B. A grep-compatible anchor plus an explicit insertion rule.
+C. A clear STOP condition if the anchor is not found exactly once.
+
+Apply specifically to:
+- Checkpoint 01 Step 1.2 config.py TIP_CORPUS migration
+- Checkpoint 05 Step 5.3 insight_generator.py TIP_CORPUS access migration
+- Checkpoint 10 Step 10.4 run_inference hook
+- Checkpoint 10 Step 10.5 crash handler
+- Checkpoint 11 Step 11.1 deploy.yml secret validation
+- Checkpoint 11 Step 11.4 tests/conftest.py fixture insertion
+
+Required wording:
+If the exact Before block is not found exactly once, STOP. Do not infer the edit location.
+
+2. Fix Checkpoint 02 traceability
+
+Problem:
+Checkpoint 02 has:
+Code blocks used: NONE (Audit-based refactor)
+and uses "Already keyword?" / "No action if already keyword".
+
+This breaks the plan's traceability model.
+
+Fix:
+Replace Checkpoint 02 with an explicit AST validation step and remove manual judgment.
+
+Add script-style validation:
+python3 - <<'PY'
+import ast
+from pathlib import Path
+
+bad = []
+for path in Path(".").rglob("*.py"):
+    if ".venv" in path.parts or "venv" in path.parts:
+        continue
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            fn = node.func
+            name = fn.id if isinstance(fn, ast.Name) else getattr(fn, "attr", "")
+            if name == "PipelineResult" and node.args:
+                bad.append((str(path), node.lineno, len(node.args)))
+
+if bad:
+    raise SystemExit(f"PipelineResult positional calls found: {bad}")
+print("PipelineResult keyword-only call validation passed")
+PY
+
+Also embed the Part 2 audit table directly in Checkpoint 02, or create a registry entry:
+CB-P2-00 | Part 2 | PipelineResult Callsite Audit | pipeline.py/tests | Constructor callsites
+
+3. Replace Step 10.5 nested locals ternaries with a named helper
+
+Problem:
+Step 10.5 uses nested ternaries inside _write_crash_dumps:
+passion_debits=locals().get(...) if ... else ...
+
+This is hard to review, hard to test, and easy to preserve incorrectly.
+
+Fix:
+Add this helper above run_pipeline, near _write_crash_dumps:
+
+def _resolve_passion_crash_fields(result=None, locals_snapshot=None):
+    """
+    Resolve passion fields for crash dumps without relying on inline locals()
+    expressions in the exception handler.
+    """
+    snap = locals_snapshot or {}
+
+    if "passion_debits" in snap:
+        passion_debits = snap.get("passion_debits")
+    else:
+        passion_debits = getattr(result, "passion_debits", None) if result is not None else None
+
+    if "passion_insights" in snap:
+        passion_insights = snap.get("passion_insights") or ()
+    else:
+        passion_insights = getattr(result, "passion_insights", ()) if result is not None else ()
+
+    if "passion_signals" in snap:
+        passion_signals = snap.get("passion_signals") or ()
+    else:
+        passion_signals = getattr(result, "passion_signals", ()) if result is not None else ()
+
+    return passion_debits, passion_insights, passion_signals
+
+Then replace the Step 10.5 crash handler call with:
+
+_passion_debits, _passion_insights, _passion_signals = _resolve_passion_crash_fields(
+    result=locals().get("result"),
+    locals_snapshot=dict(locals()),
+)
+
+_write_crash_dumps(
+    debits=debits,
+    credits=credits,
+    crash_dump_dir=config.CRASH_DUMP_DIR,
+    passion_debits=_passion_debits,
+    passion_insights=_passion_insights,
+    passion_signals=_passion_signals,
+    run_id=run_id,
+)
+
+Add validation:
+[ ] python3 -m py_compile pipeline.py succeeds.
+[ ] python3 -c "import pipeline; assert hasattr(pipeline, '_resolve_passion_crash_fields')"
+
+4. Make Checkpoint 12 seam explicit
+
+Problem:
+Checkpoint 12 says to concatenate CB-P7-05 and CB-P8-01 without an explicit seam.
+
+Fix option A, preferred:
+Inline the fully combined final tests/test_passion_engine.py in Checkpoint 12.
+
+Fix option B:
+Add seam markers:
+
+
+# BEGIN_CB_P7_05
+<full first half>
+# END_CB_P7_05
+
+# BEGIN_CB_P8_01
+<full second half>
+# END_CB_P8_01
+
+
+Add validation:
+[ ] grep -n "BEGIN CB-P7-05" tests/test_passion_engine.py
+[ ] grep -n "BEGIN CB-P8-01" tests/test_passion_engine.py
+[ ] python3 -m py_compile tests/test_passion_engine.py succeeds.
+[ ] pytest --collect-only tests/test_passion_engine.py succeeds.
+
+5. Add inter-checkpoint mini-gates
+
+After Checkpoint 01:
+[ ] python3 -m py_compile schema.py config.py succeeds.
+[ ] python3 -c "from schema import Col; from config import TIP_CORPUS, SPECIFIC_MERCHANT_ALIASES; assert Col.INFERRED_SUBCATEGORY == 'inferred_subcategory'; assert Col.SUBCATEGORY_CONFIDENCE == 'subcategory_confidence'; assert isinstance(TIP_CORPUS, dict)"
+
+After Checkpoint 03:
+[ ] python3 -m py_compile contracts.py bootstrap.py succeeds.
+[ ] python3 -c "import contracts; print('contracts ok')" succeeds.
+[ ] python3 -c "import bootstrap; print('bootstrap ok')" succeeds, unless bootstrap intentionally defers config_passion imports.
+
+After Checkpoint 06:
+[ ] python3 -m py_compile passion_models.py pipeline_result.py pipeline.py succeeds.
+[ ] python3 -c "from pipeline_result import PassionResult; import pandas as pd; r = PassionResult(debits=pd.DataFrame(), candidates=(), insights=(), passion_signals=()); assert r.debits.empty"
+
+After Checkpoint 09:
+[ ] python3 -m py_compile passion_pipeline.py succeeds.
+[ ] python3 -c "import passion_pipeline; assert hasattr(passion_pipeline, 'process_pipeline')"
+
+After Checkpoint 10:
+[ ] python3 -m py_compile pipeline.py succeeds.
+[ ] python3 -c "import pipeline; assert hasattr(pipeline, '_attach_passion_results'); assert hasattr(pipeline, '_write_crash_dumps')"
+
+6. Add crash-test hook production guard
+
+Problem:
+INSIGHT_ENGINE_CRASH_TEST intentionally raises after passion attachment for crash dump testing. It defaults safe, but the plan lacks an explicit production audit.
+
+Fix:
+Add this note to Step 10.3:
+INSIGHT_ENGINE_CRASH_TEST is test-only. It must never be set in production, staging, or deployment workflows.
+
+Add final gate check:
+[ ] Confirm INSIGHT_ENGINE_CRASH_TEST is absent from production/staging env and deployment configs.
+[ ] Confirm tests that use INSIGHT_ENGINE_CRASH_TEST set and unset it with monkeypatch, not global os.environ mutation.
+
+Optional runtime guard:
+if _os.environ.get("INSIGHT_ENGINE_CRASH_TEST", "false").lower() == "true":
+    if _os.environ.get("ENV", "development").strip().lower() in ("production", "prod", "staging"):
+        raise RuntimeError("INSIGHT_ENGINE_CRASH_TEST cannot be enabled in production/staging")
+    raise ValueError("Simulated post-passion crash")
+
+7. Normalize fixture environment mutation style
+
+Problem:
+tests/conftest.py mixes manual os.environ save/restore and monkeypatch-based mutation.
+
+Fix:
+Prefer monkeypatch for function-scoped fixtures.
+For the session-scoped fixture, manual restore is acceptable because pytest monkeypatch is function-scoped by default.
+
+Add a comment:
+Session-scoped env fixture uses manual save/restore intentionally because monkeypatch is function-scoped. Function-scoped fixtures must use monkeypatch.
+
+8. Add pyproject warning-policy note
+
+Problem:
+The warning policy decision is only in the TOML comment, not in the step.
+
+Fix:
+Add to Step 11.2 instruction:
+Do not change filterwarnings to error::UserWarning globally. pandas and third-party libraries emit non-actionable UserWarnings; only RuntimeWarning should fail tests globally.
+
+9. Document cooperative timeout limitation
+
+Problem:
+_StepBudgetGuard is cooperative. It cannot interrupt a frozen pandas or regex operation mid-step.
+
+Fix:
+Add to Checkpoint 09 or final gate docs:
+The passion budget guard checks between substages and selected internal checkpoints. It is not a process-level kill switch. Large-input protection depends on INSIGHT_ENGINE_PASSION_MAX_ROWS and avoiding unbounded regex/vectorized joins inside substages.
