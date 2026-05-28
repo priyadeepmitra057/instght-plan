@@ -1,0 +1,14 @@
+- name: Validate required secrets
+  run: |
+    if [ -z "$INSIGHT_ENGINE_SECRET" ]; then
+      echo "CRITICAL: INSIGHT_ENGINE_SECRET is not set. Aborting."
+      exit 1
+    fi
+    clean_secret=$(printf '%s' "$INSIGHT_ENGINE_SECRET" | tr -d '\r\n')
+    byte_len=$(printf '%s' "$clean_secret" | wc -c)
+    if [ "$byte_len" -lt 32 ]; then
+      echo "CRITICAL: INSIGHT_ENGINE_SECRET too short (min 32 bytes)."
+      exit 1
+    fi
+  env:
+    INSIGHT_ENGINE_SECRET: ${{ secrets.INSIGHT_ENGINE_SECRET }}
